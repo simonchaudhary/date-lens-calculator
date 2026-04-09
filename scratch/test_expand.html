@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DataLens Auto-Expand Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; color: #333; }
+        table { border-collapse: collapse; margin-bottom: 40px; }
+        td, th { border: 1px solid #ddd; padding: 12px; text-align: right; }
+        th { background: #f4f4f4; }
+        .grid { display: flex; flex-direction: column; gap: 10px; }
+        .price-item { padding: 10px; border: 1px solid #eee; width: 150px; text-align: center; background: #fafafa; }
+        .price { font-weight: bold; color: #d32f2f; }
+        h2 { margin-top: 0; }
+        .description { margin-bottom: 20px; font-size: 0.9em; color: #666; }
+    </style>
+</head>
+<body>
+
+    <h1>DataLens Auto-Expand Test Page</h1>
+
+    <section>
+        <h2>1. Table Column Test</h2>
+        <p class="description">Try dragging from the first numeric cell down to the second in the "Revenue" column. It should auto-select the entire column.</p>
+        <table id="test-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Revenue</th>
+                    <th>Expenses</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>January</td><td>€624.88</td><td>€400.00</td></tr>
+                <tr><td>February</td><td>€625.78</td><td>€410.00</td></tr>
+                <tr><td>March</td><td>€627.92</td><td>€405.00</td></tr>
+                <tr><td>April</td><td>€645.93</td><td>€420.00</td></tr>
+                <tr><td>May</td><td>€841.54</td><td>€430.00</td></tr>
+                <tr><td>June</td><td>€1,175.99</td><td>€500.00</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>2. Generic Class & Alignment Test</h2>
+        <p class="description">Try dragging across the first two "Price" items. They share the same class and vertical alignment, so the rest should be auto-selected.</p>
+        <div class="grid">
+            <div class="price-item">
+                <div>Standard Plan</div>
+                <div class="price">$19.99</div>
+            </div>
+            <div class="price-item">
+                <div>Pro Plan</div>
+                <div class="price">$49.99</div>
+            </div>
+            <div class="price-item">
+                <div>Business Plan</div>
+                <div class="price">$99.99</div>
+            </div>
+            <div class="price-item">
+                <div>Enterprise Plan</div>
+                <div class="price">$249.99</div>
+            </div>
+        </div>
+    </section>
+
+</body>
+</html>

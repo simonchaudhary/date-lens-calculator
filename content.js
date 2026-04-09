@@ -19,6 +19,7 @@
   let dragStartY = 0;
   let highlightedElements = [];
   let lastHoveredElement = null;
+  let dragBadge = null;
 
   // ─── Number Extraction ───────────────────────────────────────────
 
@@ -325,7 +326,6 @@
     overlay.addEventListener('mousedown', onDragStart);
     overlay.addEventListener('mousemove', onDragMove);
     overlay.addEventListener('mouseup', onDragEnd);
-    // Also listen on document for mouse-up outside overlay
     document.addEventListener('mouseup', onDragEnd);
   }
 
@@ -344,6 +344,10 @@
     document.removeEventListener('mouseup', onDragEnd);
     clearHighlights();
     isDragging = false;
+    if (dragBadge) {
+      dragBadge.remove();
+      dragBadge = null;
+    }
   }
 
   function onDragStart(e) {
@@ -356,6 +360,15 @@
     selectionRect.style.width = '0px';
     selectionRect.style.height = '0px';
     clearHighlights();
+
+    // Create drag badge
+    if (dragBadge) dragBadge.remove();
+    dragBadge = document.createElement('div');
+    dragBadge.className = 'datalens-drag-badge';
+    dragBadge.textContent = '0 items';
+    document.body.appendChild(dragBadge);
+    updateBadgePos(e.clientX, e.clientY);
+
     e.preventDefault();
   }
 
@@ -375,6 +388,8 @@
     selectionRect.style.width = width + 'px';
     selectionRect.style.height = height + 'px';
 
+    updateBadgePos(currentX, currentY);
+
     // Throttle highlight updates
     if (!onDragMove._throttled) {
       onDragMove._throttled = true;
@@ -383,6 +398,12 @@
         onDragMove._throttled = false;
       });
     }
+  }
+
+  function updateBadgePos(x, y) {
+    if (!dragBadge) return;
+    dragBadge.style.left = (x + 15) + 'px';
+    dragBadge.style.top = (y + 15) + 'px';
   }
 
   function updateHighlights(rectBounds) {
@@ -397,10 +418,28 @@
     selectionRect.style.display = 'block';
 
     const filteredMatched = filterMatchedElements(matched);
+    const expanded = autoExpandSelection(filteredMatched, rectBounds);
 
-    for (const { element } of filteredMatched) {
+    // Merge for preview
+    const previewItems = [...filteredMatched];
+    const seen = new Set(filteredMatched.map(m => m.element));
+    for (const item of expanded) {
+      if (!seen.has(item.element)) {
+        previewItems.push(item);
+        seen.add(item.element);
+      }
+    }
+
+    for (const { element } of previewItems) {
       element.classList.add('datalens-highlight');
       highlightedElements.push(element);
+    }
+
+    if (dragBadge) {
+      const count = previewItems.length;
+      dragBadge.textContent = `${count} item${count !== 1 ? 's' : ''}`;
+      dragBadge.style.display = count > 0 ? 'block' : 'none';
+      if (count > 0) dragBadge.classList.add('active');
     }
   }
 
@@ -458,19 +497,183 @@
     }
 
     if (allNumbers.length > 0) {
+      // Auto-expand selection if a pattern is detected
+      const expandedItems = autoExpandSelection(filteredMatched, rectBounds);
+      
+      // Merge results, avoiding duplicates
+      const finalItems = [...filteredMatched];
+      const existingElements = new Set(filteredMatched.map(m => m.element));
+      
+      for (const item of expandedItems) {
+        if (!existingElements.has(item.element)) {
+          finalItems.push(item);
+          existingElements.add(item.element);
+        }
+      }
+
       // Flash matched elements
-      for (const { element } of filteredMatched) {
+      for (const { element } of finalItems) {
         element.classList.add('datalens-flash');
         setTimeout(() => element.classList.remove('datalens-flash'), 400);
       }
 
+      // Recalculate numbers from finished set
+      const finalNumbers = [];
+      const finalOriginals = [];
+      for (const { text } of finalItems) {
+        const numbers = extractNumbers(text);
+        for (const n of numbers) {
+          finalNumbers.push(n.value);
+          finalOriginals.push(n.original);
+        }
+      }
+
       chrome.runtime.sendMessage({
         type: 'SELECTION_DATA',
-        values: allNumbers,
-        originalTexts: allOriginals,
+        values: finalNumbers,
+        originalTexts: finalOriginals,
         source: 'drag'
       });
     }
+  }
+
+  function autoExpandSelection(matched, rectBounds) {
+    if (matched.length < 2) return [];
+
+    const dragW = rectBounds.right - rectBounds.left;
+    const dragH = rectBounds.bottom - rectBounds.top;
+    const dragDirection = dragH >= dragW ? 'vertical' : 'horizontal';
+
+    // 1. Table Column/Row Strategy
+    const tableResult = tryExpandTableColumn(matched, dragDirection);
+    if (tableResult.length > 0) return tableResult;
+
+    // 2. Class & Tag Strategy (direction-aware)
+    const classResult = tryExpandByClassAndAlignment(matched, dragDirection);
+    if (classResult.length > 0) return classResult;
+
+    return [];
+  }
+
+  function tryExpandTableColumn(matched, dragDirection) {
+    const cells = matched.filter(m => m.element.tagName === 'TD' || m.element.tagName === 'TH');
+    if (cells.length < 2) return [];
+
+    const tables = new Set(cells.map(m => m.element.closest('table')));
+    if (tables.size !== 1) return [];
+
+    const table = tables.values().next().value;
+
+    if (dragDirection === 'horizontal') {
+      // Expand to all cells in the same row
+      const rows = new Set(cells.map(m => m.element.parentNode));
+      if (rows.size !== 1) return [];
+      const row = rows.values().next().value;
+      const expanded = [];
+      for (const cell of row.children) {
+        const info = getDirectTextContent(cell);
+        if (info.text) {
+          expanded.push({ element: cell, text: info.text, hasDirectText: info.hasDirectText });
+        }
+      }
+      return expanded;
+    } else {
+      // Vertical: expand to all cells in the same column
+      const firstCell = cells[0].element;
+      const columnIndex = Array.from(firstCell.parentNode.children).indexOf(firstCell);
+      const allSameColumn = cells.every(m => {
+        const idx = Array.from(m.element.parentNode.children).indexOf(m.element);
+        return idx === columnIndex;
+      });
+      if (!allSameColumn) return [];
+
+      const expanded = [];
+      const rows = table.querySelectorAll('tr');
+      for (const row of rows) {
+        const cell = row.children[columnIndex];
+        if (cell) {
+          const info = getDirectTextContent(cell);
+          if (info.text) {
+            expanded.push({ element: cell, text: info.text, hasDirectText: info.hasDirectText });
+          }
+        }
+      }
+      return expanded;
+    }
+  }
+
+  function findNearestCommonParent(elements) {
+    if (elements.length === 0) return null;
+    if (elements.length === 1) return elements[0].parentNode;
+
+    function getAncestors(el) {
+      const ancestors = [];
+      let current = el.parentNode;
+      while (current && current !== document) {
+        ancestors.push(current);
+        current = current.parentNode;
+      }
+      return ancestors;
+    }
+
+    const firstAncestors = getAncestors(elements[0]);
+    for (const ancestor of firstAncestors) {
+      if (elements.every(el => ancestor.contains(el))) {
+        return ancestor;
+      }
+    }
+    return document.body;
+  }
+
+  function tryExpandByClassAndAlignment(matched, dragDirection) {
+    const elements = matched.map(m => m.element);
+
+    // All matched elements must share the same tag name
+    const tagName = elements[0].tagName;
+    if (!elements.every(el => el.tagName === tagName)) return [];
+
+    // Find the nearest common ancestor that contains all matched elements
+    const commonParent = findNearestCommonParent(elements);
+    if (!commonParent) return [];
+
+    // Find classes shared by ALL matched elements (excluding internal ones)
+    const classSets = elements.map(el =>
+      [...el.classList].filter(c => !c.startsWith('datalens-'))
+    );
+    const commonClasses = classSets[0].filter(cls =>
+      classSets.every(set => set.includes(cls))
+    );
+
+    // Build a scoped selector: tagName[.commonClass] within commonParent
+    const selector = commonClasses.length > 0
+      ? `${tagName.toLowerCase()}.${commonClasses[0]}`
+      : tagName.toLowerCase();
+
+    // Compute the bounding band of the already-matched elements
+    const matchedRects = elements.map(el => el.getBoundingClientRect());
+    const bandLeft  = Math.min(...matchedRects.map(r => r.left))  - 10;
+    const bandRight = Math.max(...matchedRects.map(r => r.right)) + 10;
+    const bandTop    = Math.min(...matchedRects.map(r => r.top))    - 10;
+    const bandBottom = Math.max(...matchedRects.map(r => r.bottom)) + 10;
+
+    const candidates = commonParent.querySelectorAll(selector);
+    const expanded = [];
+    for (const el of candidates) {
+      const rect = el.getBoundingClientRect();
+      const centerX = rect.left + rect.width  / 2;
+      const centerY = rect.top  + rect.height / 2;
+
+      // Vertical drag → keep only candidates in the same horizontal band (same column)
+      // Horizontal drag → keep only candidates in the same vertical band (same row)
+      if (dragDirection === 'vertical'   && (centerX < bandLeft  || centerX > bandRight))  continue;
+      if (dragDirection === 'horizontal' && (centerY < bandTop   || centerY > bandBottom)) continue;
+
+      const info = getDirectTextContent(el);
+      if (info.text) {
+        expanded.push({ element: el, text: info.text, hasDirectText: info.hasDirectText });
+      }
+    }
+    return expanded;
   }
 
   function enableDragMode() {

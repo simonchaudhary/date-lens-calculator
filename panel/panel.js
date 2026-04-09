@@ -178,7 +178,7 @@
             <button class="card-action-btn" data-action="select-all" title="Add all to calculator">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
             </button>
-            <button class="card-action-btn danger" data-action="delete" title="Remove">
+            <button class="card-action-btn danger" data-action="delete-card" title="Remove entire selection">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
@@ -186,7 +186,13 @@
       </div>
       <div class="card-values">
         ${sel.values.map((v, i) => {
-          return `<span class="value-chip" data-value="${v}" data-idx="${i}" title="Click to add to calculator">${v}</span>`;
+          return `
+            <span class="value-chip" data-value="${v}" data-idx="${i}" title="Click to add to calculator">
+              ${v}
+              <button class="chip-delete-btn" title="Remove this value" data-action="delete-value">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </span>`;
         }).join('')}
       </div>
       <div class="card-meta">
@@ -196,7 +202,10 @@
 
     // Click value chips to add/remove from calculator
     card.querySelectorAll('.value-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
+      chip.addEventListener('click', (e) => {
+        // If clicking delete button, don't trigger calculator add
+        if (e.target.closest('[data-action="delete-value"]')) return;
+
         const value = parseFloat(chip.dataset.value);
         if (chip.classList.contains('selected')) {
           chip.classList.remove('selected');
@@ -208,6 +217,36 @@
       });
     });
 
+    // Delete individual value
+    card.querySelectorAll('[data-action="delete-value"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const chip = btn.closest('.value-chip');
+        const idx = parseInt(chip.dataset.idx);
+        const value = parseFloat(chip.dataset.value);
+
+        // Remove from selection array
+        sel.values.splice(idx, 1);
+        sel.originalTexts.splice(idx, 1);
+
+        // Also remove from calculator if it was there
+        removeCalcValue(value, sel.id, idx);
+
+        // IMPORTANT: Shift indices for remaining items in this selection that are in the calculator
+        calculatorValues.forEach(cv => {
+          if (cv.sourceId === sel.id && cv.idx > idx) {
+            cv.idx--;
+          }
+        });
+
+        // Re-render
+        renderSelections();
+        renderCalcValues(); // Added to refresh calc chips too
+        updateFormulaRefs();
+        showToast('Value removed');
+      });
+    });
+
     // Card actions
     card.querySelector('[data-action="select-all"]')?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -216,7 +255,7 @@
       showToast(`Added ${sel.values.length} values to calculator`);
     });
 
-    card.querySelector('[data-action="delete"]')?.addEventListener('click', (e) => {
+    card.querySelector('[data-action="delete-card"]')?.addEventListener('click', (e) => {
       e.stopPropagation();
       selections = selections.filter(s => s.id !== sel.id);
       delete selectionLetters[sel.id];

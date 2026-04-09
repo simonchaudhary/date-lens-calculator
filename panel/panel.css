@@ -456,6 +456,29 @@ kbd {
   color: var(--t-accent);
 }
 
+.chip-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  margin-right: -4px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: inherit;
+  opacity: 0.3;
+  cursor: pointer;
+  transition: opacity var(--fast), background var(--fast);
+}
+
+.chip-delete-btn:hover {
+  opacity: 1;
+  background: var(--err-dim);
+  color: var(--err);
+}
+
 .value-chip .original {
   color: var(--t-2);
   font-size: 9.5px;
