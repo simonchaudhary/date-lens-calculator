@@ -186,9 +186,7 @@
       </div>
       <div class="card-values">
         ${sel.values.map((v, i) => {
-          const orig = sel.originalTexts?.[i];
-          const showOrig = orig && orig !== String(v);
-          return `<span class="value-chip" data-value="${v}" data-idx="${i}" title="Click to add to calculator">${v}${showOrig ? `<span class="original">${orig}</span>` : ''}</span>`;
+          return `<span class="value-chip" data-value="${v}" data-idx="${i}" title="Click to add to calculator">${v}</span>`;
         }).join('')}
       </div>
       <div class="card-meta">
