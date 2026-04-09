@@ -34,15 +34,13 @@
   "commands": {
     "toggle-drag-mode": {
       "suggested_key": {
-        "default": "Alt+Shift+D",
-        "mac": "Command+Shift+D"
+        "default": "Alt+Shift+D"
       },
       "description": "Toggle drag selection mode"
     },
     "toggle-click-mode": {
       "suggested_key": {
-        "default": "Alt+Shift+C",
-        "mac": "Command+Shift+C"
+        "default": "Alt+Shift+C"
       },
       "description": "Toggle click selection mode"
     }

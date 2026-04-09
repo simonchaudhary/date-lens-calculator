@@ -5,8 +5,8 @@ DataLens Calculator is a powerful Chrome extension that allows you to easily ext
 ## Features
 
 - **🎯 Two Selection Modes**:
-  - **Click Mode** (`Alt+Shift+C` or `Cmd+Shift+C` on Mac): Click on individual elements to extract numbers instantly.
-  - **Drag Mode** (`Alt+Shift+D` or `Cmd+Shift+D` on Mac): Draw a bounding box to extract all numbers within the selected area.
+  - **Click Mode** (`Alt+Shift+C` or `Option+Shift+C` on Mac): Click on individual elements to extract numbers instantly.
+  - **Drag Mode** (`Alt+Shift+D` or `Option+Shift+D` on Mac): Draw a bounding box to extract all numbers within the selected area.
 - **🧮 Built-in Calculator**: 
   - Quick operations: Sum, Average, Min, Max, Product, Subtract, Count, and Median.
   - Custom formulas utilizing your extracted variables (e.g., `[A] * 0.9 - [B]`).
@@ -54,6 +54,6 @@ Navigate to any webpage containing data you want to compute. You have three ways
 
 | Action | Windows / Linux | Mac |
 | :--- | :--- | :--- |
-| **Toggle Drag Mode** | `Alt+Shift+D` | `Cmd+Shift+D` |
-| **Toggle Click Mode**| `Alt+Shift+C` | `Cmd+Shift+C` |
+| **Toggle Drag Mode** | `Alt+Shift+D` | `Option+Shift+D` |
+| **Toggle Click Mode**| `Alt+Shift+C` | `Option+Shift+C` |
 | **Cancel Mode**      | `Esc` | `Esc` |

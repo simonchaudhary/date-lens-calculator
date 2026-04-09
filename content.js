@@ -184,8 +184,8 @@
     modeBadge.style.alignItems = 'center';
 
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    const dragKey = isMac ? 'Cmd+Shift+D' : 'Alt+Shift+D';
-    const clickKey = isMac ? 'Cmd+Shift+C' : 'Alt+Shift+C';
+    const dragKey = isMac ? 'Option+Shift+D' : 'Alt+Shift+D';
+    const clickKey = isMac ? 'Option+Shift+C' : 'Alt+Shift+C';
 
     const textSpan = document.createElement('span');
     textSpan.textContent = mode === 'drag'

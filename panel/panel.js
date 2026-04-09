@@ -943,8 +943,8 @@
 
     // Update shortcut labels based on OS
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    const dragKey = isMac ? 'Cmd+Shift+D' : 'Alt+Shift+D';
-    const clickKey = isMac ? 'Cmd+Shift+C' : 'Alt+Shift+C';
+    const dragKey = isMac ? 'Option+Shift+D' : 'Alt+Shift+D';
+    const clickKey = isMac ? 'Option+Shift+C' : 'Alt+Shift+C';
 
     const kbdClick = document.getElementById('kbd-click');
     const kbdDrag = document.getElementById('kbd-drag');
