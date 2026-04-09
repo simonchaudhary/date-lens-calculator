@@ -522,9 +522,51 @@
       throw new Error('Invalid characters in formula');
     }
 
-    // Evaluate safely using Function constructor (limited scope)
-    const fn = new Function(`'use strict'; return (${processed});`);
-    const result = fn();
+    // Evaluate safely using a custom mathematical parser to avoid CSP unsafe-eval limits
+    const result = evaluateMath(processed);
+
+    function evaluateMath(expr) {
+      const tokens = expr.match(/\d*\.\d+|\d+|[-+*/()]/g);
+      if (!tokens) return 0;
+      let pos = 0;
+
+      function parseExpression() {
+        let result = parseTerm();
+        while (pos < tokens.length && (tokens[pos] === '+' || tokens[pos] === '-')) {
+          const op = tokens[pos++];
+          const right = parseTerm();
+          if (op === '+') result += right;
+          else result -= right;
+        }
+        return result;
+      }
+
+      function parseTerm() {
+        let result = parseFactor();
+        while (pos < tokens.length && (tokens[pos] === '*' || tokens[pos] === '/')) {
+          const op = tokens[pos++];
+          const right = parseFactor();
+          if (op === '*') result *= right;
+          else result /= right;
+        }
+        return result;
+      }
+
+      function parseFactor() {
+        if (pos >= tokens.length) return 0;
+        let token = tokens[pos++];
+        if (token === '(') {
+          let result = parseExpression();
+          if (pos < tokens.length && tokens[pos] === ')') pos++;
+          return result;
+        }
+        if (token === '-') return -parseFactor();
+        if (token === '+') return parseFactor();
+        return parseFloat(token);
+      }
+
+      return parseExpression();
+    }
 
     if (typeof result !== 'number' || !isFinite(result)) {
       throw new Error('Result is not a valid number');
