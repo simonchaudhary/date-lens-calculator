@@ -22,6 +22,8 @@
   const tabButtons = $$('.tab-btn');
   const tabContents = $$('.tab-content');
   const selectionsCountBadge = $('#selections-count');
+  const selectionsHeader = $('#selections-header');
+  const btnClearSelections = $('#btn-clear-selections');
   const selectionsEmpty = $('#selections-empty');
   const selectionsList = $('#selections-list');
   const calcValuesDisplay = $('#calc-values-display');
@@ -140,6 +142,9 @@
   function renderSelections() {
     selectionsCountBadge.textContent = selections.length;
     selectionsEmpty.classList.toggle('hidden', selections.length > 0);
+    if (selectionsHeader) {
+      selectionsHeader.style.display = selections.length > 0 ? 'flex' : 'none';
+    }
     selectionsList.innerHTML = '';
 
     for (const sel of selections) {
@@ -276,6 +281,19 @@
       });
     });
   }
+
+  // Clear all selections
+  btnClearSelections?.addEventListener('click', () => {
+    if (selections.length === 0) return;
+    selections = [];
+    selectionLetters = {};
+    calculatorValues = [];
+    calcResult.classList.add('hidden');
+    renderSelections();
+    renderCalcValues();
+    updateFormulaRefs();
+    showToast('Cleared all selections');
+  });
 
   // Clear all calculator values
   btnClearCalc.addEventListener('click', () => {

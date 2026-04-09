@@ -9,6 +9,8 @@
   window.__datalensInjected = true;
 
   let currentMode = 'off'; // 'off' | 'click' | 'drag'
+  let extractType = 'number'; // 'number' | 'text' | 'regex'
+  let extractRegex = '';
   let overlay = null;
   let selectionRect = null;
   let modeBadge = null;
@@ -23,14 +25,38 @@
   function extractNumbers(text) {
     if (!text || typeof text !== 'string') return [];
 
-    // Match numeric patterns: integers, decimals, currency, percentages, negative
-    const regex = /[-+]?[$€£¥₹]?\s*\d{1,3}(?:[,.\s]\d{3})*(?:[.,]\d+)?%?/g;
+    if (extractType === 'text') {
+      const t = text.trim();
+      return t ? [{ original: t, value: t }] : [];
+    }
+
+    let regex;
+    if (extractType === 'regex') {
+      try {
+        const regexStr = extractRegex.trim();
+        if (!regexStr) return [];
+        regex = new RegExp(regexStr, 'g');
+      } catch (e) {
+        return []; // Invalid regex
+      }
+    } else {
+      // Match numeric patterns: integers, decimals, currency, percentages, negative
+      regex = /[-+]?[$€£¥₹]?\s*\d{1,3}(?:[,.\s]\d{3})*(?:[.,]\d+)?%?/g;
+    }
+
     const matches = text.match(regex);
     if (!matches) return [];
 
     const results = [];
     for (const match of matches) {
       const original = match.trim();
+
+      if (extractType === 'regex') {
+        const cleaned = original.replace(/[$€£¥₹%\s,]/g, '');
+        const n = parseFloat(cleaned);
+        results.push({ original, value: (!isNaN(n) && isFinite(n)) ? n : original });
+        continue;
+      }
       // Strip currency symbols, spaces, and percentage signs
       let cleaned = original.replace(/[$€£¥₹%\s]/g, '');
 
@@ -154,13 +180,61 @@
     removeModeBadge();
     modeBadge = document.createElement('div');
     modeBadge.className = 'datalens-mode-badge';
+    modeBadge.style.display = 'flex';
+    modeBadge.style.alignItems = 'center';
+
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const dragKey = isMac ? 'Cmd+Shift+D' : 'Alt+Shift+D';
     const clickKey = isMac ? 'Cmd+Shift+C' : 'Alt+Shift+C';
 
-    modeBadge.textContent = mode === 'drag'
+    const textSpan = document.createElement('span');
+    textSpan.textContent = mode === 'drag'
       ? `DataLens — Drag Select Mode (${dragKey} to toggle)`
       : `DataLens — Click Mode (${clickKey} to toggle)`;
+
+    const controls = document.createElement('div');
+    controls.style.display = 'flex';
+    controls.style.alignItems = 'center';
+    controls.style.gap = '8px';
+    controls.style.marginLeft = '12px';
+    controls.style.pointerEvents = 'auto'; // allow interaction
+
+    const select = document.createElement('select');
+    select.className = 'datalens-extract-select';
+    select.innerHTML = `
+      <option value="number">Numbers</option>
+      <option value="text">Text</option>
+      <option value="regex">Regex</option>
+    `;
+    select.value = extractType;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'datalens-extract-input';
+    input.placeholder = '\\d+';
+    input.value = extractRegex;
+    input.style.display = extractType === 'regex' ? 'block' : 'none';
+
+    select.addEventListener('change', (e) => {
+      extractType = e.target.value;
+      input.style.display = extractType === 'regex' ? 'block' : 'none';
+      if (extractType === 'regex') input.focus();
+    });
+
+    input.addEventListener('input', (e) => {
+      extractRegex = e.target.value;
+    });
+
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+    });
+
+    controls.appendChild(select);
+    controls.appendChild(input);
+
+    modeBadge.appendChild(textSpan);
+    modeBadge.appendChild(controls);
+
     document.body.appendChild(modeBadge);
   }
 
@@ -189,6 +263,9 @@
   }
 
   function onClickModeClick(e) {
+    if (e.target.closest && e.target.closest('.datalens-mode-badge')) {
+      return; // Allow select/input to function normally in click mode window
+    }
     e.preventDefault();
     e.stopPropagation();
 

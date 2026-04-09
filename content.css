@@ -64,6 +64,31 @@
   }
 }
 
+/* Extraction Controls */
+.datalens-extract-select,
+.datalens-extract-input {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  color: #e8eaf0;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.datalens-extract-input {
+  font-family: 'JetBrains Mono', monospace;
+  width: 100px;
+}
+
+.datalens-extract-select:focus,
+.datalens-extract-input:focus {
+  border-color: #00d4ff;
+}
+
 /* Mode indicator badge */
 .datalens-mode-badge {
   position: fixed;
@@ -71,7 +96,7 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 2147483647;
-  padding: 8px 20px;
+  padding: 8px 16px 8px 20px;
   background: rgba(15, 17, 23, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
