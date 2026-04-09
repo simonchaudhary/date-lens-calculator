@@ -77,16 +77,46 @@
   function getDirectTextContent(el) {
     // Get text from element, preferring direct text nodes
     let text = '';
+    let hasDirectText = false;
     for (const node of el.childNodes) {
       if (node.nodeType === Node.TEXT_NODE) {
-        text += node.textContent;
+        const val = node.textContent.trim();
+        if (val) {
+          text += val + ' ';
+          hasDirectText = true;
+        }
       }
     }
-    // If no direct text, fall back to full textContent but limit depth
-    if (!text.trim()) {
-      text = el.textContent || '';
+    
+    if (hasDirectText) {
+      return { text: text.trim(), hasDirectText: true };
     }
-    return text.trim();
+
+    // If no direct text, fall back to full textContent but avoid grabbing text 
+    // from large nested structures. If the element contains complex nested blocks 
+    // (like an inner table), grabbing textContent will mistakenly suck in data 
+    // from sub-elements that might fall outside the drag selection rectangle.
+    if (el.querySelector('table, div, p, ul, ol, dl, section, article, tr, tbody')) {
+      return { text: '', hasDirectText: false };
+    }
+
+    text = el.textContent || '';
+    return { text: text.trim(), hasDirectText: false };
+  }
+
+  function filterMatchedElements(matched) {
+    const filtered = [];
+    for (const item of matched) {
+      if (item.hasDirectText) {
+        filtered.push(item);
+      } else {
+        const containsAnother = matched.some(m => m.element !== item.element && item.element.contains(m.element));
+        if (!containsAnother) {
+          filtered.push(item);
+        }
+      }
+    }
+    return filtered;
   }
 
   // ─── Overlap Detection ──────────────────────────────────────────
@@ -109,9 +139,9 @@
       const elRect = el.getBoundingClientRect();
       if (elRect.width === 0 || elRect.height === 0) continue;
       if (rectsOverlap(rectBounds, elRect)) {
-        const text = getDirectTextContent(el);
-        if (text) {
-          elements.push({ element: el, text });
+        const info = getDirectTextContent(el);
+        if (info.text) {
+          elements.push({ element: el, text: info.text, hasDirectText: info.hasDirectText });
         }
       }
     }
@@ -163,8 +193,8 @@
     e.stopPropagation();
 
     const target = e.target;
-    const text = getDirectTextContent(target);
-    const numbers = extractNumbers(text);
+    const info = getDirectTextContent(target);
+    const numbers = extractNumbers(info.text);
 
     if (numbers.length === 0) {
       // Flash red briefly
@@ -289,7 +319,9 @@
     overlay.style.pointerEvents = '';
     selectionRect.style.display = 'block';
 
-    for (const { element } of matched) {
+    const filteredMatched = filterMatchedElements(matched);
+
+    for (const { element } of filteredMatched) {
       element.classList.add('datalens-highlight');
       highlightedElements.push(element);
     }
@@ -334,27 +366,23 @@
     clearHighlights();
     selectionRect.style.display = 'none';
 
+    const filteredMatched = filterMatchedElements(matched);
+
     // Extract numbers from all matched elements
     const allNumbers = [];
     const allOriginals = [];
-    const seen = new Set();
 
-    for (const { text } of matched) {
+    for (const { text } of filteredMatched) {
       const numbers = extractNumbers(text);
       for (const n of numbers) {
-        // Deduplicate by original text + value to avoid double-counting
-        const key = n.original + ':' + n.value;
-        if (!seen.has(key)) {
-          seen.add(key);
-          allNumbers.push(n.value);
-          allOriginals.push(n.original);
-        }
+        allNumbers.push(n.value);
+        allOriginals.push(n.original);
       }
     }
 
     if (allNumbers.length > 0) {
       // Flash matched elements
-      for (const { element } of matched) {
+      for (const { element } of filteredMatched) {
         element.classList.add('datalens-flash');
         setTimeout(() => element.classList.remove('datalens-flash'), 400);
       }

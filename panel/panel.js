@@ -27,6 +27,7 @@
   const calcValuesDisplay = $('#calc-values-display');
   const manualValuesInput = $('#manual-values-input');
   const btnAddManual = $('#btn-add-manual');
+  const btnClearCalc = $('#btn-clear-calc');
   const formulaInput = $('#formula-input');
   const btnEvalFormula = $('#btn-eval-formula');
   const formulaRefList = $('#formula-ref-list');
@@ -275,6 +276,16 @@
       });
     });
   }
+
+  // Clear all calculator values
+  btnClearCalc.addEventListener('click', () => {
+    if (calculatorValues.length === 0) return;
+    calculatorValues = [];
+    calcResult.classList.add('hidden');
+    selectionsList.querySelectorAll('.value-chip.selected').forEach(c => c.classList.remove('selected'));
+    renderCalcValues();
+    showToast('Cleared all calculator values');
+  });
 
   // Manual values input
   btnAddManual.addEventListener('click', () => {
