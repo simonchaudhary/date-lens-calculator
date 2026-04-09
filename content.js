@@ -1,0 +1,416 @@
+// DataLens Calculator — Content Script
+// Handles DOM interaction: click mode, drag mode, number extraction
+
+(function () {
+  'use strict';
+
+  // Prevent double injection
+  if (window.__datalensInjected) return;
+  window.__datalensInjected = true;
+
+  let currentMode = 'off'; // 'off' | 'click' | 'drag'
+  let overlay = null;
+  let selectionRect = null;
+  let modeBadge = null;
+  let isDragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let highlightedElements = [];
+  let lastHoveredElement = null;
+
+  // ─── Number Extraction ───────────────────────────────────────────
+
+  function extractNumbers(text) {
+    if (!text || typeof text !== 'string') return [];
+
+    // Match numeric patterns: integers, decimals, currency, percentages, negative
+    const regex = /[-+]?[$€£¥₹]?\s*\d{1,3}(?:[,.\s]\d{3})*(?:[.,]\d+)?%?/g;
+    const matches = text.match(regex);
+    if (!matches) return [];
+
+    const results = [];
+    for (const match of matches) {
+      const original = match.trim();
+      // Strip currency symbols, spaces, and percentage signs
+      let cleaned = original.replace(/[$€£¥₹%\s]/g, '');
+
+      // Handle thousand separators vs decimals:
+      // If format is like 1,234.56 or 1.234,56
+      const commaCount = (cleaned.match(/,/g) || []).length;
+      const dotCount = (cleaned.match(/\./g) || []).length;
+
+      if (commaCount > 0 && dotCount > 0) {
+        // Both present: last separator is decimal
+        const lastComma = cleaned.lastIndexOf(',');
+        const lastDot = cleaned.lastIndexOf('.');
+        if (lastComma > lastDot) {
+          // European: 1.234,56
+          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        } else {
+          // US: 1,234.56
+          cleaned = cleaned.replace(/,/g, '');
+        }
+      } else if (commaCount === 1) {
+        // Could be thousand separator (1,234) or decimal (3,5)
+        const afterComma = cleaned.split(',')[1];
+        if (afterComma && afterComma.length === 3) {
+          cleaned = cleaned.replace(',', ''); // thousand separator
+        } else {
+          cleaned = cleaned.replace(',', '.'); // decimal
+        }
+      } else if (commaCount > 1) {
+        // Multiple commas = thousand separators: 1,234,567
+        cleaned = cleaned.replace(/,/g, '');
+      }
+
+      const value = parseFloat(cleaned);
+      if (!isNaN(value) && isFinite(value)) {
+        results.push({ original, value });
+      }
+    }
+
+    return results;
+  }
+
+  // ─── Element Text Extraction ─────────────────────────────────────
+
+  function getDirectTextContent(el) {
+    // Get text from element, preferring direct text nodes
+    let text = '';
+    for (const node of el.childNodes) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.textContent;
+      }
+    }
+    // If no direct text, fall back to full textContent but limit depth
+    if (!text.trim()) {
+      text = el.textContent || '';
+    }
+    return text.trim();
+  }
+
+  // ─── Overlap Detection ──────────────────────────────────────────
+
+  function rectsOverlap(r1, r2) {
+    return !(r1.right < r2.left || r1.left > r2.right ||
+             r1.bottom < r2.top || r1.top > r2.bottom);
+  }
+
+  function getElementsInRect(rectBounds) {
+    const elements = [];
+    // Query leaf-ish elements: cells, spans, divs with text, etc.
+    const candidates = document.querySelectorAll(
+      'td, th, span, p, li, dd, dt, h1, h2, h3, h4, h5, h6, a, label, ' +
+      'div:not(:has(div)), strong, em, b, i, code, pre, small, big, sup, sub'
+    );
+
+    for (const el of candidates) {
+      if (!el.offsetParent && el.tagName !== 'BODY' && el.tagName !== 'HTML') continue;
+      const elRect = el.getBoundingClientRect();
+      if (elRect.width === 0 || elRect.height === 0) continue;
+      if (rectsOverlap(rectBounds, elRect)) {
+        const text = getDirectTextContent(el);
+        if (text) {
+          elements.push({ element: el, text });
+        }
+      }
+    }
+    return elements;
+  }
+
+  // ─── Mode Badge ──────────────────────────────────────────────────
+
+  function showModeBadge(mode) {
+    removeModeBadge();
+    modeBadge = document.createElement('div');
+    modeBadge.className = 'datalens-mode-badge';
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const dragKey = isMac ? 'Cmd+Shift+D' : 'Alt+Shift+D';
+    const clickKey = isMac ? 'Cmd+Shift+C' : 'Alt+Shift+C';
+
+    modeBadge.textContent = mode === 'drag'
+      ? `DataLens — Drag Select Mode (${dragKey} to toggle)`
+      : `DataLens — Click Mode (${clickKey} to toggle)`;
+    document.body.appendChild(modeBadge);
+  }
+
+  function removeModeBadge() {
+    if (modeBadge) {
+      modeBadge.classList.add('datalens-badge-exit');
+      const badge = modeBadge;
+      setTimeout(() => badge.remove(), 250);
+      modeBadge = null;
+    }
+  }
+
+  // ─── Click Mode ──────────────────────────────────────────────────
+
+  function onClickModeHover(e) {
+    if (lastHoveredElement && lastHoveredElement !== e.target) {
+      lastHoveredElement.classList.remove('datalens-click-hover');
+    }
+    e.target.classList.add('datalens-click-hover');
+    lastHoveredElement = e.target;
+  }
+
+  function onClickModeLeave(e) {
+    e.target.classList.remove('datalens-click-hover');
+    if (lastHoveredElement === e.target) lastHoveredElement = null;
+  }
+
+  function onClickModeClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const target = e.target;
+    const text = getDirectTextContent(target);
+    const numbers = extractNumbers(text);
+
+    if (numbers.length === 0) {
+      // Flash red briefly
+      target.classList.add('datalens-flash');
+      setTimeout(() => target.classList.remove('datalens-flash'), 400);
+      return;
+    }
+
+    // Flash cyan
+    target.classList.add('datalens-flash');
+    setTimeout(() => target.classList.remove('datalens-flash'), 400);
+
+    // Send to background
+    chrome.runtime.sendMessage({
+      type: 'SELECTION_DATA',
+      values: numbers.map(n => n.value),
+      originalTexts: numbers.map(n => n.original),
+      source: 'click'
+    });
+  }
+
+  function enableClickMode() {
+    document.addEventListener('mouseover', onClickModeHover, true);
+    document.addEventListener('mouseout', onClickModeLeave, true);
+    document.addEventListener('click', onClickModeClick, true);
+    showModeBadge('click');
+  }
+
+  function disableClickMode() {
+    document.removeEventListener('mouseover', onClickModeHover, true);
+    document.removeEventListener('mouseout', onClickModeLeave, true);
+    document.removeEventListener('click', onClickModeClick, true);
+    if (lastHoveredElement) {
+      lastHoveredElement.classList.remove('datalens-click-hover');
+      lastHoveredElement = null;
+    }
+  }
+
+  // ─── Drag Mode ───────────────────────────────────────────────────
+
+  function createOverlay() {
+    overlay = document.createElement('div');
+    overlay.className = 'datalens-overlay';
+    document.body.appendChild(overlay);
+
+    selectionRect = document.createElement('div');
+    selectionRect.className = 'datalens-selection-rect';
+    selectionRect.style.display = 'none';
+    document.body.appendChild(selectionRect);
+
+    overlay.addEventListener('mousedown', onDragStart);
+    overlay.addEventListener('mousemove', onDragMove);
+    overlay.addEventListener('mouseup', onDragEnd);
+    // Also listen on document for mouse-up outside overlay
+    document.addEventListener('mouseup', onDragEnd);
+  }
+
+  function removeOverlay() {
+    if (overlay) {
+      overlay.removeEventListener('mousedown', onDragStart);
+      overlay.removeEventListener('mousemove', onDragMove);
+      overlay.removeEventListener('mouseup', onDragEnd);
+      overlay.remove();
+      overlay = null;
+    }
+    if (selectionRect) {
+      selectionRect.remove();
+      selectionRect = null;
+    }
+    document.removeEventListener('mouseup', onDragEnd);
+    clearHighlights();
+    isDragging = false;
+  }
+
+  function onDragStart(e) {
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    selectionRect.style.display = 'block';
+    selectionRect.style.left = dragStartX + 'px';
+    selectionRect.style.top = dragStartY + 'px';
+    selectionRect.style.width = '0px';
+    selectionRect.style.height = '0px';
+    clearHighlights();
+    e.preventDefault();
+  }
+
+  function onDragMove(e) {
+    if (!isDragging) return;
+
+    const currentX = e.clientX;
+    const currentY = e.clientY;
+
+    const left = Math.min(currentX, dragStartX);
+    const top = Math.min(currentY, dragStartY);
+    const width = Math.abs(currentX - dragStartX);
+    const height = Math.abs(currentY - dragStartY);
+
+    selectionRect.style.left = left + 'px';
+    selectionRect.style.top = top + 'px';
+    selectionRect.style.width = width + 'px';
+    selectionRect.style.height = height + 'px';
+
+    // Throttle highlight updates
+    if (!onDragMove._throttled) {
+      onDragMove._throttled = true;
+      requestAnimationFrame(() => {
+        updateHighlights({ left, top, right: left + width, bottom: top + height });
+        onDragMove._throttled = false;
+      });
+    }
+  }
+
+  function updateHighlights(rectBounds) {
+    clearHighlights();
+    // Temporarily hide overlay to query elements beneath
+    overlay.style.pointerEvents = 'none';
+    selectionRect.style.display = 'none';
+
+    const matched = getElementsInRect(rectBounds);
+
+    overlay.style.pointerEvents = '';
+    selectionRect.style.display = 'block';
+
+    for (const { element } of matched) {
+      element.classList.add('datalens-highlight');
+      highlightedElements.push(element);
+    }
+  }
+
+  function clearHighlights() {
+    for (const el of highlightedElements) {
+      el.classList.remove('datalens-highlight');
+    }
+    highlightedElements = [];
+  }
+
+  function onDragEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+
+    const currentX = e.clientX;
+    const currentY = e.clientY;
+
+    const left = Math.min(currentX, dragStartX);
+    const top = Math.min(currentY, dragStartY);
+    const width = Math.abs(currentX - dragStartX);
+    const height = Math.abs(currentY - dragStartY);
+
+    // Minimum drag threshold
+    if (width < 5 && height < 5) {
+      selectionRect.style.display = 'none';
+      clearHighlights();
+      return;
+    }
+
+    const rectBounds = { left, top, right: left + width, bottom: top + height };
+
+    // Temporarily hide overlay to query elements
+    overlay.style.pointerEvents = 'none';
+    selectionRect.style.display = 'none';
+
+    const matched = getElementsInRect(rectBounds);
+
+    overlay.style.pointerEvents = '';
+
+    clearHighlights();
+    selectionRect.style.display = 'none';
+
+    // Extract numbers from all matched elements
+    const allNumbers = [];
+    const allOriginals = [];
+    const seen = new Set();
+
+    for (const { text } of matched) {
+      const numbers = extractNumbers(text);
+      for (const n of numbers) {
+        // Deduplicate by original text + value to avoid double-counting
+        const key = n.original + ':' + n.value;
+        if (!seen.has(key)) {
+          seen.add(key);
+          allNumbers.push(n.value);
+          allOriginals.push(n.original);
+        }
+      }
+    }
+
+    if (allNumbers.length > 0) {
+      // Flash matched elements
+      for (const { element } of matched) {
+        element.classList.add('datalens-flash');
+        setTimeout(() => element.classList.remove('datalens-flash'), 400);
+      }
+
+      chrome.runtime.sendMessage({
+        type: 'SELECTION_DATA',
+        values: allNumbers,
+        originalTexts: allOriginals,
+        source: 'drag'
+      });
+    }
+  }
+
+  function enableDragMode() {
+    createOverlay();
+    showModeBadge('drag');
+  }
+
+  function disableDragMode() {
+    removeOverlay();
+  }
+
+  // ─── Mode Management ─────────────────────────────────────────────
+
+  function setMode(newMode) {
+    // Disable current mode
+    if (currentMode === 'click') disableClickMode();
+    if (currentMode === 'drag') disableDragMode();
+
+    currentMode = newMode;
+
+    // Enable new mode
+    if (newMode === 'click') enableClickMode();
+    else if (newMode === 'drag') enableDragMode();
+
+    if (newMode === 'off') removeModeBadge();
+  }
+
+  // ─── Message Handling ────────────────────────────────────────────
+
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'SET_MODE') {
+      setMode(message.mode);
+      sendResponse({ status: 'ok', mode: currentMode });
+    } else if (message.type === 'GET_CURRENT_MODE') {
+      sendResponse({ mode: currentMode });
+    } else if (message.type === 'PING') {
+      sendResponse({ status: 'alive' });
+    }
+  });
+
+  // Escape key to turn off
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && currentMode !== 'off') {
+      setMode('off');
+      chrome.runtime.sendMessage({ type: 'MODE_CHANGED', mode: 'off' }).catch(() => {});
+    }
+  });
+})();

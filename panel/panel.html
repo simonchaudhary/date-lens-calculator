@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DataLens Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <!-- ─── Header ──────────────────────────────────────────────── -->
+  <header id="header">
+    <div class="header-brand">
+      <div class="logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+          <path d="M8 8h6M8 11h4M8 14h5" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <h1>DataLens</h1>
+      <span class="version-tag">v1.0</span>
+    </div>
+    <div class="header-controls">
+      <button id="btn-click-mode" class="mode-btn" title="Click Mode">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3l14 8-7 2-3 7z"/></svg>
+        <span>Click</span>
+      </button>
+      <button id="btn-drag-mode" class="mode-btn" title="Drag Mode">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"/></svg>
+        <span>Drag</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ─── Tab Navigation ──────────────────────────────────────── -->
+  <nav id="tab-nav">
+    <button class="tab-btn active" data-tab="selections">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+      Selections
+      <span id="selections-count" class="count-badge">0</span>
+    </button>
+    <button class="tab-btn" data-tab="calculator">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h3M13 14h3M8 18h3"/></svg>
+      Calculator
+    </button>
+    <button class="tab-btn" data-tab="history">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      History
+    </button>
+    <button class="tab-btn" data-tab="paste">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
+      Paste
+    </button>
+  </nav>
+
+  <!-- ─── Selections Tab ──────────────────────────────────────── -->
+  <section id="tab-selections" class="tab-content active">
+    <div id="selections-empty" class="empty-state">
+      <div class="empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+      </div>
+      <p class="empty-title">No selections yet</p>
+      <p class="empty-desc">Use <kbd>Click</kbd> or <kbd>Drag</kbd> mode to extract numbers from any webpage.</p>
+      <div class="shortcut-hints">
+        <div class="shortcut-hint"><kbd id="kbd-click">Alt+Shift+C</kbd> Click mode</div>
+        <div class="shortcut-hint"><kbd id="kbd-drag">Alt+Shift+D</kbd> Drag mode</div>
+        <div class="shortcut-hint"><kbd>Esc</kbd> Deactivate</div>
+      </div>
+    </div>
+    <div id="selections-list" class="card-list"></div>
+  </section>
+
+  <!-- ─── Calculator Tab ──────────────────────────────────────── -->
+  <section id="tab-calculator" class="tab-content">
+    <!-- Quick operations on selected values -->
+    <div class="calc-section">
+      <h3 class="section-title">Values</h3>
+      <p class="section-desc">Select values from the Selections tab, or type them below.</p>
+      <div id="calc-values-display" class="calc-values-display">
+        <div class="calc-placeholder">No values selected</div>
+      </div>
+      <div class="manual-input-row">
+        <input type="text" id="manual-values-input" class="text-input" placeholder="Or type values: 10, 20, 30">
+        <button id="btn-add-manual" class="btn-sm btn-accent">Add</button>
+      </div>
+    </div>
+
+    <div class="calc-section">
+      <h3 class="section-title">Quick Operations</h3>
+      <div class="ops-grid">
+        <button class="op-btn" data-op="sum">
+          <span class="op-symbol">Σ</span>
+          <span class="op-label">Sum</span>
+        </button>
+        <button class="op-btn" data-op="avg">
+          <span class="op-symbol">x̄</span>
+          <span class="op-label">Average</span>
+        </button>
+        <button class="op-btn" data-op="min">
+          <span class="op-symbol">↓</span>
+          <span class="op-label">Min</span>
+        </button>
+        <button class="op-btn" data-op="max">
+          <span class="op-symbol">↑</span>
+          <span class="op-label">Max</span>
+        </button>
+        <button class="op-btn" data-op="product">
+          <span class="op-symbol">∏</span>
+          <span class="op-label">Product</span>
+        </button>
+        <button class="op-btn" data-op="subtract">
+          <span class="op-symbol">−</span>
+          <span class="op-label">Subtract</span>
+        </button>
+        <button class="op-btn" data-op="count">
+          <span class="op-symbol">#</span>
+          <span class="op-label">Count</span>
+        </button>
+        <button class="op-btn" data-op="median">
+          <span class="op-symbol">M̃</span>
+          <span class="op-label">Median</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="calc-section">
+      <h3 class="section-title">Custom Formula</h3>
+      <p class="section-desc">Reference selections by label: <code>[A] * 0.9 - [B]</code></p>
+      <div class="formula-row">
+        <input type="text" id="formula-input" class="text-input mono" placeholder="e.g. [A] * 0.9 - [B]">
+        <button id="btn-eval-formula" class="btn-sm btn-accent">=</button>
+      </div>
+      <div id="formula-ref-list" class="formula-refs"></div>
+    </div>
+
+    <!-- Result display -->
+    <div id="calc-result" class="calc-result hidden">
+      <div class="result-label">Result</div>
+      <div class="result-formula" id="result-formula"></div>
+      <div class="result-value" id="result-value"></div>
+      <div class="result-actions">
+        <button id="btn-copy-result" class="btn-sm btn-ghost" title="Copy result">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy
+        </button>
+        <button id="btn-save-result" class="btn-sm btn-ghost" title="Save to history">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+          Save
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── History Tab ─────────────────────────────────────────── -->
+  <section id="tab-history" class="tab-content">
+    <div class="history-header">
+      <div class="history-filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="pinned">📌 Pinned</button>
+        <button class="filter-btn" data-filter="snapshots">📸 Snapshots</button>
+      </div>
+      <button id="btn-clear-history" class="btn-sm btn-danger" title="Clear all history">Clear All</button>
+    </div>
+    <div id="history-empty" class="empty-state">
+      <div class="empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </div>
+      <p class="empty-title">No history yet</p>
+      <p class="empty-desc">Perform calculations to see them here.</p>
+    </div>
+    <div id="history-list" class="card-list"></div>
+
+    <!-- Snapshot Create Modal -->
+    <div id="snapshot-modal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <h3>Save Snapshot</h3>
+        <p>Label this calculation set for easy reference.</p>
+        <input type="text" id="snapshot-name-input" class="text-input" placeholder="e.g. Daumesnil - Apr 9">
+        <div class="modal-actions">
+          <button id="btn-snapshot-cancel" class="btn-sm btn-ghost">Cancel</button>
+          <button id="btn-snapshot-save" class="btn-sm btn-accent">Save Snapshot</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Paste Tab ───────────────────────────────────────────── -->
+  <section id="tab-paste" class="tab-content">
+    <div class="paste-section">
+      <h3 class="section-title">Paste Data</h3>
+      <p class="section-desc">Paste table data from Excel, Google Sheets, or any tab-delimited source.</p>
+      <div class="paste-tip">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span>Can't select numbers on page? Some apps use canvas or virtualized lists. Copy the data and paste it here instead.</span>
+      </div>
+      <textarea id="paste-textarea" class="paste-textarea" placeholder="Paste your data here...&#10;&#10;Example:&#10;67&#9;$1,234.56&#10;10&#9;€99.90&#10;6&#9;45%"></textarea>
+      <div class="paste-actions">
+        <button id="btn-paste-extract" class="btn-sm btn-accent">Extract Numbers</button>
+        <button id="btn-paste-clear" class="btn-sm btn-ghost">Clear</button>
+      </div>
+      <div id="paste-result" class="paste-result hidden"></div>
+    </div>
+  </section>
+
+  <!-- ─── Toast ───────────────────────────────────────────────── -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="panel.js"></script>
+</body>
+</html>
