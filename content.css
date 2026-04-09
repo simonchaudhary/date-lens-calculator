@@ -1,7 +1,7 @@
 /* DataLens Calculator — Content Script Styles */
 /* All classes prefixed with .datalens- to avoid conflicts */
 
-/* Full-page overlay for drag mode */
+/* ─── Full-page overlay ─────────────────────────────────────── */
 .datalens-overlay {
   position: fixed;
   inset: 0;
@@ -10,117 +10,134 @@
   background: transparent;
 }
 
-/* Rubber-band selection rectangle */
+/* ─── Selection rectangle — Figma-precision, not neon ─────────── */
 .datalens-selection-rect {
   position: fixed;
-  border: 2px dashed #00d4ff;
-  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(124, 108, 231, 0.75);
+  background: rgba(124, 108, 231, 0.05);
   z-index: 2147483647;
   pointer-events: none;
-  box-shadow: 0 0 12px rgba(0, 212, 255, 0.3), inset 0 0 12px rgba(0, 212, 255, 0.05);
-  animation: datalens-march 0.5s linear infinite;
+  outline: 1px dashed rgba(124, 108, 231, 0.40);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.5);
+  animation: datalens-march 0.7s linear infinite;
 }
 
-/* Marching ants animation for the dashed border */
 @keyframes datalens-march {
-  to {
-    stroke-dashoffset: -12;
-    border-color: #00ffcc;
+  0% {
+    outline-color: rgba(124, 108, 231, 0.50);
+  }
+
+  50% {
+    outline-color: rgba(124, 108, 231, 0.15);
+  }
+
+  100% {
+    outline-color: rgba(124, 108, 231, 0.50);
   }
 }
 
-/* Highlight on matched elements during drag */
+/* ─── Matched element highlight ─────────────────────────────── */
 .datalens-highlight {
-  outline: 2px solid #00d4ff !important;
-  outline-offset: 1px !important;
-  background-color: rgba(0, 212, 255, 0.12) !important;
-  transition: outline-color 0.15s ease, background-color 0.15s ease !important;
+  outline: 1.5px solid rgba(124, 108, 231, 0.65) !important;
+  outline-offset: 2px !important;
+  background-color: rgba(124, 108, 231, 0.07) !important;
+  transition: outline-color 0.10s ease, background-color 0.10s ease !important;
   border-radius: 2px !important;
 }
 
-/* Click mode hover highlight */
+/* ─── Click-mode hover ──────────────────────────────────────── */
 .datalens-click-hover {
-  outline: 2px solid #00d4ff !important;
-  outline-offset: 1px !important;
-  background-color: rgba(0, 212, 255, 0.08) !important;
+  outline: 1.5px solid rgba(124, 108, 231, 0.55) !important;
+  outline-offset: 2px !important;
+  background-color: rgba(124, 108, 231, 0.05) !important;
   cursor: pointer !important;
   border-radius: 2px !important;
-  transition: all 0.15s ease !important;
+  transition: outline 0.10s ease, background-color 0.10s ease !important;
 }
 
-/* Flash effect when element is clicked/selected */
+/* ─── Flash on click ────────────────────────────────────────── */
 .datalens-flash {
-  animation: datalens-flash-anim 0.4s ease-out !important;
+  animation: datalens-flash-anim 0.36s ease-out !important;
 }
 
 @keyframes datalens-flash-anim {
   0% {
-    background-color: rgba(0, 212, 255, 0.35) !important;
-    outline-color: #00ffcc !important;
+    background-color: rgba(124, 108, 231, 0.22) !important;
+    outline-color: rgba(160, 144, 240, 0.90) !important;
   }
+
+  60% {
+    background-color: rgba(124, 108, 231, 0.06) !important;
+    outline-color: rgba(124, 108, 231, 0.35) !important;
+  }
+
   100% {
     background-color: transparent !important;
     outline-color: transparent !important;
   }
 }
 
-/* Extraction Controls */
+/* ─── Extraction Controls ───────────────────────────────────── */
 .datalens-extract-select,
 .datalens-extract-input {
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(0, 212, 255, 0.4);
-  color: #e8eaf0;
-  border-radius: 4px;
+  background: rgba(13, 13, 14, 0.92);
+  border: 1px solid rgba(124, 108, 231, 0.25);
+  color: #ebebed;
+  border-radius: 3px;
   padding: 3px 6px;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 11px;
   font-weight: 500;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.11s ease;
 }
 
 .datalens-extract-input {
-  font-family: 'JetBrains Mono', monospace;
   width: 100px;
 }
 
 .datalens-extract-select:focus,
 .datalens-extract-input:focus {
-  border-color: #00d4ff;
+  border-color: rgba(124, 108, 231, 0.60);
+  box-shadow: 0 0 0 2px rgba(124, 108, 231, 0.08);
 }
 
-/* Mode indicator badge */
+/* ─── Mode badge — HUD, not marketing pill ──────────────────── */
 .datalens-mode-badge {
   position: fixed;
-  top: 12px;
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2147483647;
-  padding: 8px 16px 8px 20px;
-  background: rgba(15, 17, 23, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 212, 255, 0.3);
-  border-radius: 24px;
-  color: #00d4ff;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 13px;
+  padding: 6px 13px 6px 10px;
+  background: rgba(17, 17, 19, 0.97);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(124, 108, 231, 0.20);
+  border-radius: 5px;
+  color: #c5beff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.3px;
   pointer-events: none;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 12px rgba(0, 212, 255, 0.15);
-  animation: datalens-badge-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow:
+    0 2px 14px rgba(0, 0, 0, 0.60),
+    0 0 0 0.5px rgba(255, 255, 255, 0.04);
+  animation: datalens-badge-in 0.20s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .datalens-mode-badge.datalens-badge-exit {
-  animation: datalens-badge-out 0.25s ease-in forwards;
+  animation: datalens-badge-out 0.16s ease-in forwards;
 }
 
 @keyframes datalens-badge-in {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-12px) scale(0.95);
+    transform: translateX(-50%) translateY(-8px) scale(0.96);
   }
+
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0) scale(1);
@@ -130,25 +147,33 @@
 @keyframes datalens-badge-out {
   to {
     opacity: 0;
-    transform: translateX(-50%) translateY(-12px) scale(0.95);
+    transform: translateX(-50%) translateY(-8px) scale(0.96);
   }
 }
 
-/* Dot indicator on the badge */
+/* Status dot */
 .datalens-mode-badge::before {
   content: '';
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #00d4ff;
+  background: #7c6ce7;
   margin-right: 8px;
   vertical-align: middle;
-  box-shadow: 0 0 6px #00d4ff;
-  animation: datalens-pulse 1.5s ease-in-out infinite;
+  position: relative;
+  top: -1px;
+  animation: datalens-pulse 2.2s ease-in-out infinite;
 }
 
 @keyframes datalens-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.25;
+  }
 }
