@@ -13,7 +13,8 @@
     "default_path": "panel/panel.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background/index.js",
+    "type": "module"
   },
   "action": {
     "default_title": "DataLens Calculator",
@@ -26,8 +27,17 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "js": [
+        "content/number-extractor.js",
+        "content/dom-utils.js",
+        "content/highlights.js",
+        "content/mode-badge.js",
+        "content/auto-expand.js",
+        "content/click-mode.js",
+        "content/drag-mode.js",
+        "content/index.js"
+      ],
+      "css": ["content/content.css"],
       "run_at": "document_idle"
     }
   ],
